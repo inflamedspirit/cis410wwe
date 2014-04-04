@@ -28,7 +28,10 @@ class Scanner {
       begin++;
       for ( int i = begin; i<=range.end(); ++i){
          input[i]=input[i-1]+input[i];
+<<<<<<< HEAD
 	 //here? -yes issue is with input[i-1] which is might not be computed
+=======
+>>>>>>> dd095b87a446b4f6e5c1302e0bfe33512eed9615
       }
     }
 };

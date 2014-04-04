@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <tbb/tbb.h>
+<<<<<<< HEAD
 #include <pthread.h> // needed for grabbing thread id, not provided by default
+=======
+#include <pthread.h>
+>>>>>>> dd095b87a446b4f6e5c1302e0bfe33512eed9615
 #include <time.h>
 #define NUM_ITERS 10
 #define NUM_NAMES 8

@@ -16,7 +16,6 @@ int main()
    init(a,ARRAYSIZE);
    omp_set_num_threads(4);
 
-
    #pragma omp ordered
    for(i=1;i<=ARRAYSIZE;i++)
    {
