@@ -1,1 +1,60 @@
-This should be replaced by a description of the data reorganization you chose to implement and its effectiveness. Your description can be short, but should address the change made and why you expected a performance improvement. You should also include performance metrics to support wether runtime improved or not.
+Lab 7 - Parallelized Optimization of Basic Matrix Multiplication
+Wesley Erickson
+
+REORGANIZATION:
+
+For data reorganization, I replaced the (ORDER)x(ORDER) array with an (ORDER/BLOCK_SIZE)x(ORDER/BLOCK_SIZE)x(BLOCK_SIZE)x(BLOCK_SIZE) array, where BLOCK_SIZE is a chosen integer. The division was rounded up so that I would fit the entire array. Values that fell outside the initial array were initialized to 0. This reorganization allows me to perform the matrix multiplication by multiplying matrices of size (BLOCK_SIZE)x(BLOCK_SIZE), so that, if BLOCK_SIZE is chosen properly, I can store the sub-matrices in cache while multiplying.
+
+The ideal value for BLOCK_SIZE was determined by experimenting with different values. Unsurprisingly it was found that multiples of 2 performed reasonably well. For the matrix sizes I experimented with, BLOCK_SIZE=16 gave me the best performance. The testing was performed automatically in a clunky way via the Makefile build script matmul_mp_all.
+
+PARALLELIZATION:
+
+To parallelize the multiplication, I simply parallelize over sections (of size (BLOCK_SIZE)x(BLOCK_SIZE) ) in the output matrix. These are independent from each-other and should take about the same runtime, so we can expect all the cores to be engaged for most of the process.
+
+As for performance: The approximate runtime dropped by about 50% when implementing reorganization. Parallelizing dropped the runtime by an additional 15-20%. The boost from parallelizing isn't quite as good as we might hope for, since this problem is highly parallelizable... but it definitely is a performance boost!
+
+The results for some individual runs are shown and labelled below:
+
+--
+
+UNOPTIMIZED: 1000
+Order 1000 multiplication in 0.563093 seconds 
+Order 1000 multiplication at 3551.809988 mflops
+
+REORGANIZE: 1000
+Order 1000 multiplication in 0.290258 seconds 
+Order 1000 multiplication at 6890.423269 mflops
+
+REORGANIZE + PARALLEL: 1000
+Order 1000 multiplication in 0.238263 seconds 
+Order 1000 multiplication at 8394.080941 mflops
+
+--
+
+UNOPTIMIZED: 2000
+Order 2000 multiplication in 4.485377 seconds 
+Order 2000 multiplication at 3567.147140 mflops
+
+REORGANIZE: 2000
+Order 2000 multiplication in 2.930774 seconds 
+Order 2000 multiplication at 5459.308751 mflops
+
+REORGANIZE + PARALLEL: 2000
+Order 2000 multiplication in 1.848548 seconds 
+Order 2000 multiplication at 8655.442303 mflops
+
+--
+
+UNOPTIMIZED: 5000
+Order 5000 multiplication in 77.143528 seconds 
+Order 5000 multiplication at 3240.712559 mflops
+
+REORGANIZE: 5000
+Order 5000 multiplication in 50.369878 seconds 
+Order 5000 multiplication at 4963.283805 mflops
+
+REORGANIZE + PARALLEL: 5000
+Order 5000 multiplication in 29.073862 seconds 
+Order 5000 multiplication at 8598.788814 mflops
+
+--
