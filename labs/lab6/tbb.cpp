@@ -13,9 +13,10 @@ using namespace std;
 using namespace tbb;
 
 
-struct Reducer {
+struct Xor {
 char value;
-Xor() : char(0) {}
+Xor() : value(0) {}
+Xor(char init) : value(init) {}
 Xor( Xor& s, split ) {value = 0;}
 void operator()( const blocked_range<char*>& r ) {
 char temp = value;
@@ -26,7 +27,6 @@ value = temp;
 }
 void join( Xor& rhs ) {value ^= rhs.value;}
 };
-
 
 
 
@@ -48,17 +48,19 @@ void encode(char* plainText, char* cypherText, xorKey* keyList, int ptextlen, in
   for(charLoop=0;charLoop<ptextlen;charLoop++) {
     char cipherChar=plainText[charLoop]; 
 
-    for(keyLoop=0;keyLoop<numKeys;keyLoop++) {//what the hell are they doing? Wasting so much time!?
-       cipherChar=cipherChar ^ getBit(&(keyList[keyLoop]),charLoop);
+    char charsToReduce[numKeys];
+    for(keyLoop=0;keyLoop<numKeys;keyLoop++) {
+      charsToReduce[keyLoop] = getBit(&(keyList[keyLoop]),charLoop);
     }
 
+    //    for(keyLoop=0;keyLoop<numKeys;keyLoop++) {
+    // cipherChar=cipherChar ^ getBit(&(keyList[keyLoop]),charLoop);
+    //}
 
-Xor total;
-parallel_reduce( blocked_range<char*>( array, array+n ), 
-		   total );
-return total.value;
-}
-
+    Xor total(cipherChar);
+    parallel_reduce( blocked_range<char*>( charsToReduce, charsToReduce + numKeys ), total );
+  
+    cipherChar = total.value;
 
     cypherText[charLoop]=cipherChar;
   }
