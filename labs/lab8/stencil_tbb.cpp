@@ -3,8 +3,11 @@
 #include <cstdint>
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <tbb/tbb.h>
 
+using namespace tbb;
 using namespace cv;
+
 
 struct pixel {
 	double red;
@@ -13,6 +16,91 @@ struct pixel {
 	
 	pixel(double r, double g, double b) : red(r), green(g), blue(b) {};
 };
+
+class forloop_stencil{ 
+  long curr;
+  char * passmatch;
+  bool * done;     
+
+  const int radius;
+  const double stddev;
+  const int rows;
+  const int cols;
+  pixel * const in;
+  pixel * const out;
+
+  const int dim;
+  double * kernel;
+
+  const int i;
+
+public:  
+  forloop_stencil(const int radius_, const double stddev_, const int rows_, const int cols_, pixel * const in_, pixel * const out_, double * kernel_, const int dim_, const int i_) : radius(radius_), stddev(stddev_), rows(rows_), cols(cols_), in(in_), out(out_), kernel(kernel_), dim(dim_), i(i_) {}
+  void operator()( blocked_range<int> range ) const { 
+    for (int j=range.begin(); j<range.end(); j++ ){  
+      const int out_offset = i + (j*rows);
+      // For each pixel, do the stencil
+      for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
+	for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
+	  if(x >= 0 && x < rows && y >= 0 && y < cols) {
+	    const int in_offset = x + (y*rows);
+	    const int k_offset = kx + (ky*dim);
+	    out[out_offset].red   += kernel[k_offset] * in[in_offset].red;
+	    out[out_offset].green += kernel[k_offset] * in[in_offset].green;
+	    out[out_offset].blue  += kernel[k_offset] * in[in_offset].blue;
+	  }
+	}
+      }
+    }
+  }
+};
+
+
+
+class forloop_applyPrew{ 
+  long curr;
+  char * passmatch;
+  bool * done;     
+
+  const int radius;
+  const int rows;
+  const int cols;
+  pixel * const in;
+  pixel * const out;
+
+  const int dim;
+  double * kernel;
+
+  const int i;
+
+public:  
+  forloop_applyPrew(const int radius_, const int rows_, const int cols_, pixel * const in_, pixel * const out_, double * kernel_, const int dim_, const int i_) : radius(radius_), rows(rows_), cols(cols_), in(in_), out(out_), kernel(kernel_), dim(dim_), i(i_) {}
+  void operator()( blocked_range<int> range ) const { 
+    for (int j=range.begin(); j<range.end(); j++ ){  
+
+
+      const int out_offset = i + (j*rows);
+      // For each pixel, do the stencil	
+      for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
+	for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
+	  if(x >= 0 && x < rows && y >= 0 && y < cols) {
+	    const int in_offset = x + (y*rows);
+	    const int k_offset = kx + (ky*dim);
+	    double intensity = (in[in_offset].red + in[in_offset].green + in[in_offset].blue)/3.0;						
+	    out[out_offset].red   += kernel[k_offset] * intensity;
+	    out[out_offset].green += kernel[k_offset] * intensity;
+	    out[out_offset].blue  += kernel[k_offset] * intensity;
+	  }
+	}
+      }
+
+
+    }
+  }
+};
+
+
+
 
 /*
  * The Prewitt kernels can be applied after a blur to help highlight edges
@@ -86,22 +174,12 @@ void apply_stencil(const int radius, const double stddev, const int rows, const 
 	const int dim = radius*2+1;
 	double kernel[dim*dim];
 	gaussian_kernel(dim, dim, stddev, kernel);
+
 	for(int i = 0; i < rows; ++i) {
-		for(int j = 0; j < cols; ++j) {
-			const int out_offset = i + (j*rows);
-			// For each pixel, do the stencil
-			for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
-				for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
-					if(x >= 0 && x < rows && y >= 0 && y < cols) {
-						const int in_offset = x + (y*rows);
-						const int k_offset = kx + (ky*dim);
-						out[out_offset].red   += kernel[k_offset] * in[in_offset].red;
-						out[out_offset].green += kernel[k_offset] * in[in_offset].green;
-						out[out_offset].blue  += kernel[k_offset] * in[in_offset].blue;
-					}
-				}
-			}
-		}
+
+  parallel_for(blocked_range<int>(0,cols), forloop_stencil(radius,stddev,rows,cols,in,out,kernel,dim,i));
+
+		
 	}
 }
 
@@ -109,23 +187,12 @@ void apply_kernelY(const int radius, const int rows, const int cols, pixel * con
 	const int dim = radius*2+1;
 	double kernel[dim*dim];
 	prewittY_kernel(dim, dim, kernel);
+
 	for(int i = 0; i < rows; ++i) {
-		for(int j = 0; j < cols; ++j) {
-			const int out_offset = i + (j*rows);
-			// For each pixel, do the stencil
-			for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
-				for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
-					if(x >= 0 && x < rows && y >= 0 && y < cols) {
-						const int in_offset = x + (y*rows);
-						const int k_offset = kx + (ky*dim);
-						double intensity = (in[in_offset].red + in[in_offset].green + in[in_offset].blue)/3.0;						
-						out[out_offset].red   += kernel[k_offset] * intensity;
-						out[out_offset].green += kernel[k_offset] * intensity;
-						out[out_offset].blue  += kernel[k_offset] * intensity;
-					}
-				}
-			}
-		}
+  //	  #pragma omp parallel for default(shared)
+
+	  parallel_for(blocked_range<int>(0,cols), forloop_applyPrew(radius,rows,cols,in,out,kernel,dim,i));
+
 	}
 }
 
@@ -133,29 +200,19 @@ void apply_kernelX(const int radius, const int rows, const int cols, pixel * con
 	const int dim = radius*2+1;
 	double kernel[dim*dim];
 	prewittX_kernel(dim, dim, kernel);
+
+
 	for(int i = 0; i < rows; ++i) {
-		for(int j = 0; j < cols; ++j) {
-			const int out_offset = i + (j*rows);
-			// For each pixel, do the stencil
-			for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
-				for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
-					if(x >= 0 && x < rows && y >= 0 && y < cols) {
-						const int in_offset = x + (y*rows);
-						const int k_offset = kx + (ky*dim);
-						double intensity = (in[in_offset].red + in[in_offset].green + in[in_offset].blue)/3.0;						
-						out[out_offset].red   += kernel[k_offset] * intensity;
-						out[out_offset].green += kernel[k_offset] * intensity;
-						out[out_offset].blue  += kernel[k_offset] * intensity;
-					}
-				}
-			}
-		}
+	  //	  #pragma omp parallel for default(shared)
+	  parallel_for(blocked_range<int>(0,cols), forloop_applyPrew(radius,rows,cols,in,out,kernel,dim,i));
+
 	}
 }
 
 
 void apply_geoMean(const int rows, const int cols, pixel * const in1, pixel * const in2, pixel * const out) {
 
+  //        #pragma omp parallel for default(shared)
 	for(int i = 0; i < rows*cols; ++i) {
 			// For each pixel, do the stencil
 	  out[i].red   =  sqrt( in1[i].red*in1[i].red + in2[i].red * in2[i].red );

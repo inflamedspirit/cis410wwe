@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <cilk/cilk.h>
 
 using namespace cv;
 
@@ -86,11 +87,14 @@ void apply_stencil(const int radius, const double stddev, const int rows, const 
 	const int dim = radius*2+1;
 	double kernel[dim*dim];
 	gaussian_kernel(dim, dim, stddev, kernel);
+	
 	for(int i = 0; i < rows; ++i) {
-		for(int j = 0; j < cols; ++j) {
+           cilk_for(int j = 0; j < cols; ++j) {
 			const int out_offset = i + (j*rows);
 			// For each pixel, do the stencil
+
 			for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
+
 				for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
 					if(x >= 0 && x < rows && y >= 0 && y < cols) {
 						const int in_offset = x + (y*rows);
@@ -109,11 +113,15 @@ void apply_kernelY(const int radius, const int rows, const int cols, pixel * con
 	const int dim = radius*2+1;
 	double kernel[dim*dim];
 	prewittY_kernel(dim, dim, kernel);
+
 	for(int i = 0; i < rows; ++i) {
-		for(int j = 0; j < cols; ++j) {
+
+		cilk_for(int j = 0; j < cols; ++j) {
 			const int out_offset = i + (j*rows);
 			// For each pixel, do the stencil
+
 			for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
+
 				for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
 					if(x >= 0 && x < rows && y >= 0 && y < cols) {
 						const int in_offset = x + (y*rows);
@@ -133,11 +141,15 @@ void apply_kernelX(const int radius, const int rows, const int cols, pixel * con
 	const int dim = radius*2+1;
 	double kernel[dim*dim];
 	prewittX_kernel(dim, dim, kernel);
+
 	for(int i = 0; i < rows; ++i) {
-		for(int j = 0; j < cols; ++j) {
+
+		cilk_for(int j = 0; j < cols; ++j) {
 			const int out_offset = i + (j*rows);
 			// For each pixel, do the stencil
+
 			for(int x = i - radius, kx = 0; x <= i + radius; ++x, ++kx) {
+
 				for(int y = j - radius, ky = 0; y <= j + radius; ++y, ++ky) {
 					if(x >= 0 && x < rows && y >= 0 && y < cols) {
 						const int in_offset = x + (y*rows);
@@ -156,7 +168,8 @@ void apply_kernelX(const int radius, const int rows, const int cols, pixel * con
 
 void apply_geoMean(const int rows, const int cols, pixel * const in1, pixel * const in2, pixel * const out) {
 
-	for(int i = 0; i < rows*cols; ++i) {
+
+	cilk_for(int i = 0; i < rows*cols; ++i) {
 			// For each pixel, do the stencil
 	  out[i].red   =  sqrt( in1[i].red*in1[i].red + in2[i].red * in2[i].red );
 	  out[i].green   = sqrt( in1[i].green*in1[i].green + in2[i].green * in2[i].green );
