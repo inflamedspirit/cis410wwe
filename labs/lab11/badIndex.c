@@ -17,8 +17,8 @@ void scanGroup(int** vectorGroup)
 {
    int i=0;
    #pragma omp parallel for
-   for(i=0;i<=NUMVECTORS;i++)
-   {
+   for(i=0;i<NUMVECTORS;i++) //we had a <= instead of a <
+     {                       //zomg zomg zomg!!
       scan(vectorGroup[i]);
    }
 }
