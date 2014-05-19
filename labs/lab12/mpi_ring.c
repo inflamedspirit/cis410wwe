@@ -18,8 +18,11 @@ int main(int argc, char** argv) {
     char allText[255*tot];
     MPI_Status mpistat;
 
-    int sender = (rank-1+tot)%tot;
-    int recver = (rank+1)%tot;
+    // since mod of negative values gets messed up in C
+    // we have to add tot manually. Silly C, why you have to
+    // do mod so funny.
+    int sender = (rank+1)%tot;
+    int recver = (rank-1+tot)%tot;
     
     if(rank==0) {
         sprintf(text,"Hello from rank %d",rank);
