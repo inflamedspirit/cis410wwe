@@ -11,12 +11,12 @@
 #
 ############################################################################
 
-prog:=pipeline_serial
+prog:=pipeline_tbb
 objs:=$(patsubst %.c,%.o,$(wildcard *.cpp))
 
 cc=icpc
-ccflags= -MMD -g -Wall
-ldflags= -lopencv_core -lopencv_highgui -lopencv_imgproc
+ccflags= -MMD -g -Wall -std=c++0x
+ldflags= -lopencv_core -lopencv_highgui -lopencv_imgproc -ltbb
 
 %.o: %.c
 	$(cc) $(ccflags) -c $<
@@ -29,7 +29,7 @@ $(prog): $(objs)
 
 clean:
 	rm -f garbleVideo *.o *.d counts* *.output *~ $(prog) 
-	
+
 -include *.d
 
 # vim: set ts=4: #
